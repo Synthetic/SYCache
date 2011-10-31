@@ -139,7 +139,11 @@
 
 #pragma mark - Adding and Removing Cached Values
 
-- (void)setObject:(id)object forKey:(NSString *)key {	
+- (void)setObject:(id)object forKey:(NSString *)key {
+	if (!object) {
+		return;
+	}
+	
 	dispatch_async(_queue, ^{
 		NSString *path = [self _pathForKey:key];
 		
@@ -244,6 +248,10 @@
 
 
 - (void)setImage:(UIImage *)image forKey:(NSString *)key {
+	if (!image) {
+		return;
+	}
+	
 	key = [[self class] _keyForImageKey:key];
 	
 	dispatch_async(_queue, ^{		
