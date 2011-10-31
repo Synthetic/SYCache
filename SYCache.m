@@ -88,6 +88,19 @@
 }
 
 
+- (BOOL)hasObjectForKey:(NSString *)key {
+	__block BOOL exists = ([_memoryCache objectForKey:key] != nil);
+	if (exists) {
+		return exists;
+	}
+	
+	dispatch_sync(_diskQueue, ^{
+		exists = [_fileManager fileExistsAtPath:[self pathForKey:key]];
+	});
+	return exists;
+}
+
+
 #pragma mark - Adding and Removing Cached Values
 
 - (void)setObject:(id)object forKey:(NSString *)key {
@@ -118,6 +131,7 @@
 }
 
 
+#pragma mark - Accessing the Disk Cache
 
 - (NSString *)pathForKey:(NSString *)key {
 	return [_cacheDirectory stringByAppendingPathComponent:key];

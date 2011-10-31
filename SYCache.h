@@ -31,6 +31,7 @@
 ///-----------------------------
 
 - (id)objectForKey:(NSString *)key;
+- (BOOL)hasObjectForKey:(NSString *)key;
 
 
 ///----------------------------------------
@@ -42,6 +43,9 @@
 - (void)removeAllObjects;
 
 
+///-------------------------------
+/// @name Accessing the Disk Cache
+///-------------------------------
 
 - (NSString *)pathForKey:(NSString *)key;
 
