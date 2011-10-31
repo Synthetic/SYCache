@@ -31,7 +31,8 @@
 ///-----------------------------
 
 - (id)objectForKey:(NSString *)key;
-- (BOOL)hasObjectForKey:(NSString *)key;
+- (void)objectForKey:(NSString *)key usingBlock:(void (^)(id object))block;
+- (BOOL)objectExistsForKey:(NSString *)key;
 
 
 ///----------------------------------------
@@ -47,6 +48,13 @@
 /// @name Accessing the Disk Cache
 ///-------------------------------
 
+/**
+ Returns the path to the object on disk associated with a given key.
+ 
+ @param key An object identifying the value.
+ 
+ @return Path to object on disk or `nil` if no object exists for the given `key`.
+ */
 - (NSString *)pathForKey:(NSString *)key;
 
 @end

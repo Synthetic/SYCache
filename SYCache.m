@@ -8,9 +8,13 @@
 
 #import "SYCache.h"
 
+@interface SYCache (Private)
+- (NSString *)_pathForKey:(NSString *)key;
+@end
+
 @implementation SYCache {
-	NSCache *_memoryCache;
-	dispatch_queue_t _diskQueue;
+	NSCache *_cache;
+	dispatch_queue_t _queue;
 	NSFileManager *_fileManager;
 	NSString *_cacheDirectory;
 }
@@ -19,13 +23,20 @@
 
 #pragma mark - NSObject
 
+- (id)init {
+	NSLog(@"[SYCache] You must initalize SYCache using `initWithName:`.");
+	[self autorelease];
+	return nil;
+}
+
+
 - (void)dealloc {
-	[_memoryCache removeAllObjects];
-	[_memoryCache release];
-	_memoryCache = nil;
+	[_cache removeAllObjects];
+	[_cache release];
+	_cache = nil;
 	
-	dispatch_release(_diskQueue);
-	_diskQueue = nil;
+	dispatch_release(_queue);
+	_queue = nil;
 	
 	[_name release];
 	_name = nil;
@@ -58,7 +69,7 @@
 - (id)initWithName:(NSString *)name {
 	if ((self = [super init])) {
 		_name = [name copy];
-		_diskQueue = dispatch_queue_create([name cStringUsingEncoding:NSUTF8StringEncoding], DISPATCH_QUEUE_SERIAL);
+		_queue = dispatch_queue_create([name cStringUsingEncoding:NSUTF8StringEncoding], DISPATCH_QUEUE_SERIAL);
 		_fileManager = [[NSFileManager alloc] init];
 		
 		NSString *cachesDirectory = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) lastObject];
@@ -75,27 +86,48 @@
 #pragma mark - Getting a Cached Value
 
 - (id)objectForKey:(NSString *)key {
-	__block id object = [_memoryCache objectForKey:key];
+	__block id object = [_cache objectForKey:key];
 	if (object) {
 		return object;
 	}
 	
-	dispatch_sync(_diskQueue, ^{
-		object = [[NSKeyedUnarchiver unarchiveObjectWithFile:[self pathForKey:key]] retain];
-	});
+	// Get path if object exists
+	NSString *path = [self pathForKey:key];
+	if (!path) {
+		return nil;
+	}
 	
-	return [object autorelease];
+	// Load object from disk
+	object = [NSKeyedUnarchiver unarchiveObjectWithFile:path];
+	
+	// Store in cache
+	[_cache setObject:object forKey:key];
+	
+	return object;
 }
 
 
-- (BOOL)hasObjectForKey:(NSString *)key {
-	__block BOOL exists = ([_memoryCache objectForKey:key] != nil);
+- (void)objectForKey:(NSString *)key usingBlock:(void (^)(id object))block {
+	dispatch_sync(_queue, ^{
+		id object = [[_cache objectForKey:key] retain];
+		if (!object) {
+			object = [[NSKeyedUnarchiver unarchiveObjectWithFile:[self _pathForKey:key]] retain];
+			[_cache setObject:object forKey:key];
+		}
+		
+		block([object autorelease]);
+	});
+}
+
+
+- (BOOL)objectExistsForKey:(NSString *)key {
+	__block BOOL exists = ([_cache objectForKey:key] != nil);
 	if (exists) {
-		return exists;
+		return YES;
 	}
 	
-	dispatch_sync(_diskQueue, ^{
-		exists = [_fileManager fileExistsAtPath:[self pathForKey:key]];
+	dispatch_sync(_queue, ^{
+		exists = [_fileManager fileExistsAtPath:[self _pathForKey:key]];
 	});
 	return exists;
 }
@@ -103,28 +135,38 @@
 
 #pragma mark - Adding and Removing Cached Values
 
-- (void)setObject:(id)object forKey:(NSString *)key {
-	[_memoryCache setObject:object forKey:key];
-	
-	dispatch_async(_diskQueue, ^{
-		[NSKeyedArchiver archiveRootObject:object toFile:[self pathForKey:key]];
+- (void)setObject:(id)object forKey:(NSString *)key {	
+	dispatch_async(_queue, ^{
+		NSString *path = [self _pathForKey:key];
+		
+		// Stop if in memory cache or disk cache
+		if (([_cache objectForKey:key] != nil) || [_fileManager fileExistsAtPath:path]) {
+			return;
+		}
+		
+		// Save to memory cache
+		[_cache setObject:object forKey:key];
+		
+		// Save to disk cache
+		[NSKeyedArchiver archiveRootObject:object toFile:[self _pathForKey:key]];
 	});
 }
 
 
 - (void)removeObjectForKey:(id)key {
-	[_memoryCache removeObjectForKey:key];
-	dispatch_async(_diskQueue, ^{
-		[_fileManager removeItemAtPath:[self pathForKey:key] error:nil];
+	[_cache removeObjectForKey:key];
+	
+	dispatch_async(_queue, ^{
+		[_fileManager removeItemAtPath:[self _pathForKey:key] error:nil];
 	});
 }
 
 
 - (void)removeAllObjects {
-	[_memoryCache removeAllObjects];
-	dispatch_async(_diskQueue, ^{
-		NSArray *paths = [_fileManager contentsOfDirectoryAtPath:_cacheDirectory error:nil];
-		for (NSString *path in paths) {
+	[_cache removeAllObjects];
+	
+	dispatch_async(_queue, ^{
+		for (NSString *path in [_fileManager contentsOfDirectoryAtPath:_cacheDirectory error:nil]) {
 			[_fileManager removeItemAtPath:[_cacheDirectory stringByAppendingPathComponent:path] error:nil];
 		}
 	});
@@ -134,6 +176,16 @@
 #pragma mark - Accessing the Disk Cache
 
 - (NSString *)pathForKey:(NSString *)key {
+	if ([self objectExistsForKey:key]) {
+		return [self _pathForKey:key];
+	}
+	return nil;
+}
+
+
+#pragma mark - Private
+
+- (NSString *)_pathForKey:(NSString *)key {
 	return [_cacheDirectory stringByAppendingPathComponent:key];
 }
 
