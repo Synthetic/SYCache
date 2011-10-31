@@ -58,3 +58,16 @@
 - (NSString *)pathForKey:(NSString *)key;
 
 @end
+
+
+#if TARGET_OS_IPHONE
+
+@interface SYCache (UIImageAdditions)
+
+- (UIImage *)imageForKey:(NSString *)key;
+- (void)imageForKey:(NSString *)key usingBlock:(void (^)(UIImage *image))block;
+- (void)setImage:(UIImage *)image forKey:(NSString *)key;
+
+@end
+
+#endif

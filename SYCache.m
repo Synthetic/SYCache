@@ -194,3 +194,81 @@
 }
 
 @end
+
+
+#if TARGET_OS_IPHONE
+
+@interface SYCache (UIImagePrivateAdditions)
++ (NSString *)_keyForImageKey:(NSString *)imageKey;
+@end
+
+@implementation SYCache (UIImageAdditions)
+
+- (UIImage *)imageForKey:(NSString *)key {
+	key = [[self class] _keyForImageKey:key];
+	
+	__block UIImage *image = [_cache objectForKey:key];
+	if (image) {
+		return image;
+	}
+	
+	// Get path if object exists
+	NSString *path = [self pathForKey:key];
+	if (!path) {
+		return nil;
+	}
+	
+	// Load object from disk
+	image = [UIImage imageWithContentsOfFile:path];
+	
+	// Store in cache
+	[_cache setObject:image forKey:key];
+	
+	return image;
+}
+
+
+- (void)imageForKey:(NSString *)key usingBlock:(void (^)(UIImage *image))block {
+	key = [[self class] _keyForImageKey:key];
+	
+	dispatch_sync(_queue, ^{
+		UIImage *image = [[_cache objectForKey:key] retain];
+		if (!image) {
+			image = [[UIImage alloc] initWithContentsOfFile:[self _pathForKey:key]];
+			[_cache setObject:image forKey:key];
+		}
+		
+		block([image autorelease]);
+	});
+}
+
+
+- (void)setImage:(UIImage *)image forKey:(NSString *)key {
+	key = [[self class] _keyForImageKey:key];
+	
+	dispatch_async(_queue, ^{		
+		NSString *path = [self _pathForKey:key];
+		
+		// Stop if in memory cache or disk cache
+		if (([_cache objectForKey:key] != nil) || [_fileManager fileExistsAtPath:path]) {
+			return;
+		}
+		
+		// Save to memory cache
+		[_cache setObject:image forKey:key];
+		
+		// Save to disk cache
+		[UIImagePNGRepresentation(image) writeToFile:path atomically:YES];
+	});	
+}
+
+#pragma mark - Private
+
++ (NSString *)_keyForImageKey:(NSString *)imageKey {
+	NSString *scale = [[UIScreen mainScreen] scale] == 2.0f ? @"@2x" : @"";
+	return [imageKey stringByAppendingFormat:@"%@.png", scale];
+}
+		   
+#endif
+
+@end
