@@ -69,9 +69,13 @@
 - (id)initWithName:(NSString *)name {
 	if ((self = [super init])) {
 		_name = [name copy];
-		_queue = dispatch_queue_create([name cStringUsingEncoding:NSUTF8StringEncoding], DISPATCH_QUEUE_SERIAL);
-		_fileManager = [[NSFileManager alloc] init];
 		
+		_cache = [[NSCache alloc] init];
+		_cache.name = name;
+		
+		_queue = dispatch_queue_create([name cStringUsingEncoding:NSUTF8StringEncoding], DISPATCH_QUEUE_SERIAL);
+		
+		_fileManager = [[NSFileManager alloc] init];		
 		NSString *cachesDirectory = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) lastObject];
 		_cacheDirectory = [[cachesDirectory stringByAppendingFormat:@"/com.syntheticcorp.sycache/%@", name] retain];
 		
