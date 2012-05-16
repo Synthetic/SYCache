@@ -246,6 +246,9 @@
 	});
 }
 
+- (BOOL)imageExistsForKey:(NSString *)key {
+    return [self objectExistsForKey:[[self class] _keyForImageKey:key]];
+}
 
 - (void)setImage:(UIImage *)image forKey:(NSString *)key {
 	if (!image) {
