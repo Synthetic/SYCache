@@ -66,6 +66,7 @@
 
 - (UIImage *)imageForKey:(NSString *)key;
 - (void)imageForKey:(NSString *)key usingBlock:(void (^)(UIImage *image))block;
+- (BOOL)imageExistsForKey:(NSString *)key;
 - (void)setImage:(UIImage *)image forKey:(NSString *)key;
 
 @end
