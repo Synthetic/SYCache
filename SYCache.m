@@ -24,30 +24,18 @@
 #pragma mark - NSObject
 
 - (id)init {
-	NSLog(@"[SYCache] You must initalize SYCache using `initWithName:`.");
-	[self autorelease];
+    NSAssert(1==0, @"[SYCache] You must initalize SYCache using `initWithName:`.");
 	return nil;
 }
 
 
 - (void)dealloc {
 	[_cache removeAllObjects];
-	[_cache release];
+    
 	_cache = nil;
-	
-	dispatch_release(_queue);
 	_queue = nil;
-	
-	[_name release];
-	_name = nil;
-	
-	[_fileManager release];
 	_fileManager = nil;
-	
-	[_cacheDirectory release];
 	_cacheDirectory = nil;
-	
-	[super dealloc];
 }
 
 
@@ -77,7 +65,7 @@
 		
 		_fileManager = [[NSFileManager alloc] init];		
 		NSString *cachesDirectory = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) lastObject];
-		_cacheDirectory = [[cachesDirectory stringByAppendingFormat:@"/com.syntheticcorp.sycache/%@", name] retain];
+		_cacheDirectory = [cachesDirectory stringByAppendingFormat:@"/com.syntheticcorp.sycache/%@", name];
 		
 		if (![_fileManager fileExistsAtPath:_cacheDirectory]) {
 			[_fileManager createDirectoryAtPath:_cacheDirectory withIntermediateDirectories:YES attributes:nil error:nil];
@@ -111,15 +99,15 @@
 }
 
 
-- (void)objectForKey:(NSString *)key usingBlock:(void (^)(id object))block {
+- (void)objectForKey:(NSString *)key usingBlock:(void (^)(id __autoreleasing object))block {
 	dispatch_sync(_queue, ^{
-		id object = [[_cache objectForKey:key] retain];
+		id object = [_cache objectForKey:key];
 		if (!object) {
-			object = [[NSKeyedUnarchiver unarchiveObjectWithFile:[self _pathForKey:key]] retain];
+			object = [NSKeyedUnarchiver unarchiveObjectWithFile:[self _pathForKey:key]];
 			[_cache setObject:object forKey:key];
 		}
 		
-		block([object autorelease]);
+		block(object);
 	});
 }
 
@@ -232,17 +220,17 @@
 }
 
 
-- (void)imageForKey:(NSString *)key usingBlock:(void (^)(UIImage *image))block {
+- (void)imageForKey:(NSString *)key usingBlock:(void (^)(UIImage __autoreleasing *image))block {
 	key = [[self class] _keyForImageKey:key];
 	
 	dispatch_sync(_queue, ^{
-		UIImage *image = [[_cache objectForKey:key] retain];
+		UIImage *image = [_cache objectForKey:key];
 		if (!image) {
 			image = [[UIImage alloc] initWithContentsOfFile:[self _pathForKey:key]];
 			[_cache setObject:image forKey:key];
 		}
 		
-		block([image autorelease]);
+		block(image);
 	});
 }
 
