@@ -285,7 +285,10 @@
         [self imageWithKey:imageNameKey withStringURL:fullPath completionHandler:completion];
     }else{
         
-        completion(image);
+        if(nil != image) {
+            completion(image);
+        }
+        
         
     }
     
@@ -315,7 +318,10 @@
             dispatch_sync(dispatch_get_main_queue(), ^{
                 
                 image = [self imageForKey:imageName];
-                completion(image);
+                if(nil != image){
+                    completion(image);
+                }
+                
                 
             });
         });
