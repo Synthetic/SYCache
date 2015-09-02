@@ -7,6 +7,10 @@
 //
 
 #import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
+
+typedef void(^ImageOnComplete)(UIImage *image);
+typedef void(^ImageOnSend)(void);
 
 @interface SYCache : NSObject
 
@@ -67,6 +71,17 @@
 - (UIImage *)imageForKey:(NSString *)key;
 - (void)imageForKey:(NSString *)key usingBlock:(void (^)(UIImage *image))block;
 - (void)setImage:(UIImage *)image forKey:(NSString *)key;
+
+/** Download an image resource. */
+- (void)imageWithStringURL:(NSString *)fullPath
+         completionHandler:(ImageOnComplete)completion
+       beforeDownloadImage:(ImageOnSend)beforeComplete;
+
+/** Download an image resource which is associating to a key-string. */
+- (void)imageWithKey:(NSString*)key
+       withStringURL:(NSString *)fullPath
+   completionHandler:(ImageOnComplete)completion;
+
 
 @end
 

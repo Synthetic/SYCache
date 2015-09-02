@@ -270,6 +270,78 @@
 	});	
 }
 
+- (void)imageWithStringURL:(NSString *)fullPath
+         completionHandler:(ImageOnComplete)completion
+       beforeDownloadImage:(ImageOnSend)beforeComplete {
+    
+    NSString*           imageNameKey =[fullPath lastPathComponent];
+    __block UIImage*    image = [self imageForKey:imageNameKey];
+    
+    if(!image){
+        
+        // This should return a placeholder
+        beforeComplete();
+        
+        [self imageWithKey:imageNameKey withStringURL:fullPath completionHandler:completion];
+    }else{
+        
+        if(nil != image) {
+            completion(image);
+        }
+        
+        
+    }
+    
+}
+
+- (void)imageWithKey:(NSString*)key
+       withStringURL:(NSString *)fullPath
+   completionHandler:(ImageOnComplete)completion {
+    
+    fullPath = [fullPath stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+    
+    __block UIImage *image = [self imageForKey:key];
+    if (image) {
+        completion(image);
+    } else {
+        
+        dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0ul);
+        dispatch_async(queue, ^{
+            
+            NSString *imageName = [self preventWrongCharsIntoString:[fullPath lastPathComponent]];
+            
+            [self setImage:[UIImage imageWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:fullPath]]]
+                    forKey:imageName];
+            
+            image = [self imageForKey:imageName];
+            
+            dispatch_sync(dispatch_get_main_queue(), ^{
+                
+                image = [self imageForKey:imageName];
+                if(nil != image){
+                    completion(image);
+                }
+                
+                
+            });
+        });
+        
+    }
+    
+}
+
+/**
+ * Filter only valid characteres.
+ */
+- (NSString *)preventWrongCharsIntoString: (NSString*)source {
+    
+    NSString *unfilteredString = source;
+    NSCharacterSet *notAllowedChars = [[NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_1234567890.:/-"] invertedSet];
+    NSString *resultString = [[unfilteredString componentsSeparatedByCharactersInSet:notAllowedChars] componentsJoinedByString:@""];
+    
+    return resultString;
+}
+
 #pragma mark - Private
 
 + (NSString *)_keyForImageKey:(NSString *)imageKey {
